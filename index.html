@@ -268,6 +268,9 @@
 
   /* ── A4 ── */
   .a4 {
+    color: #1a1a1a;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px;
     width: 794px;
     min-height: 1123px;
     background: var(--paper-bg);
@@ -315,6 +318,13 @@
     min-width: 0;
   }
 
+  /* ── Block Border ── */
+  .block[data-border="all"] { border: 1px solid #1a1a1a; }
+  .block[data-border="top"] { border-top: 1px solid #1a1a1a; }
+  .block[data-border="bottom"] { border-bottom: 1px solid #1a1a1a; }
+  .block[data-border="left"] { border-left: 1px solid #1a1a1a; }
+  .block[data-border="right"] { border-right: 1px solid #1a1a1a; }
+
   /* ── Selected ── */
   .block.selected {
     outline: 2px dashed var(--accent);
@@ -350,6 +360,7 @@
   .desk::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 4px; }
 
   @media print {
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     @page {
       size: A4;
       margin: 0;
@@ -383,9 +394,12 @@
       background: #fff !important;
       page-break-after: always;
     }
-    .block {
+    .block:not([data-border]) {
       box-shadow: none !important;
       border: none !important;
+    }
+    .block[data-border] {
+      box-shadow: none !important;
     }
     .block.selected {
       outline: none !important;
@@ -432,14 +446,26 @@
 
   <div class="divider"></div>
 
+  <select id="sel-block-border" class="fmt-select">
+    <option value="none">Border</option>
+    <option value="all">All</option>
+    <option value="top">Top</option>
+    <option value="bottom">Bottom</option>
+    <option value="left">Left</option>
+    <option value="right">Right</option>
+  </select>
+  <input type="color" id="sel-block-bg" class="fmt-color">
+
+  <div class="divider"></div>
+
   <select id="sel-font-family" class="fmt-select" disabled>
-    <option value="">FontFamily</option>
+    <option value="">Family</option>
     <option value="IBM Plex Sans">IBM Plex Sans</option>
     <option value="IBM Plex Serif">IBM Plex Serif</option>
     <option value="IBM Plex Mono">IBM Plex Mono</option>
   </select>
   <select id="sel-font-size" class="fmt-select" disabled>
-    <option value="">FontSize</option>
+    <option value="">Size</option>
     <option value="10">10</option>
     <option value="12">12</option>
     <option value="14">14</option>
@@ -450,7 +476,9 @@
   <button id="btn-bold" class="fmt-btn" disabled style="font-weight:700;">B</button>
   <button id="btn-italic" class="fmt-btn" disabled style="font-style:italic;">I</button>
   <button id="btn-underline" class="fmt-btn" disabled style="text-decoration:underline;">U</button>
-  <input type="color" id="sel-color" class="fmt-color">
+  <input type="color" id="sel-font-color" class="fmt-color">
+
+  <div class="divider"></div>
 
   <button id="btn-print" class="primary" style="margin-left:auto;">
     <svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
@@ -477,13 +505,15 @@
   const btnAddSubRow = document.getElementById('btn-add-sub-row');
   const btnAddSubCol = document.getElementById('btn-add-sub-col');
   const btnMergeWithNextSib = document.getElementById('btn-merge-with-next-sib');
-  const btnRemove = document.getElementById('btn-remove');
+  const selBlockBorder = document.getElementById('sel-block-border');
+  const selBlockBg = document.getElementById('sel-block-bg');
   const selFontFamily = document.getElementById('sel-font-family');
   const selFontSize = document.getElementById('sel-font-size');
   const btnBold = document.getElementById('btn-bold');
   const btnItalic = document.getElementById('btn-italic');
   const btnUnderline = document.getElementById('btn-underline');
-  const selColor = document.getElementById('sel-color');
+  const selFontColor = document.getElementById('sel-font-color');
+  const btnRemove = document.getElementById('btn-remove');
   const btnPrint = document.getElementById('btn-print');
   const tv = document.getElementById('tv');
   const a4 = document.getElementById('a4');
@@ -578,13 +608,21 @@
     btnRemove.disabled = !selectedEl;
     btnMergeWithNextSib.disabled = !selectedEl;
 
+    selBlockBorder.disabled = !selectedEl;
+    selBlockBg.disabled = !selectedEl;
+
     const contenteditable = selectedEl && isContenteditable(selectedEl);
     selFontFamily.disabled = !contenteditable;
     selFontSize.disabled = !contenteditable;
     btnBold.disabled = !contenteditable;
     btnItalic.disabled = !contenteditable;
     btnUnderline.disabled = !contenteditable;
-    selColor.disabled = !contenteditable;
+    selFontColor.disabled = !contenteditable;
+
+    if (selectedEl) {
+      selBlockBorder.value = selectedEl.dataset.border || 'none';
+      selBlockBg.value = selectedEl.dataset.bg || '#ffffff';
+    }
 
     if (!selectedEl) {
       btnAddSubRow.disabled = false;
@@ -756,6 +794,22 @@
   btnMergeWithNextSib.addEventListener('click', mergeWithNextSib);
   btnRemove.addEventListener('click', remove);
 
+  selBlockBorder.addEventListener('change', function() {
+    if (!selectedEl) return;
+    const val = selBlockBorder.value;
+    if (val === 'none') {
+      delete selectedEl.dataset.border;
+    } else {
+      selectedEl.dataset.border = val;
+    }
+    save();
+  });
+  selBlockBg.addEventListener('input', function() {
+    if (!selectedEl) return;
+    selectedEl.dataset.bg = selBlockBg.value;
+    selectedEl.style.backgroundColor = selBlockBg.value;
+    save();
+  });
   selFontFamily.addEventListener('change', function() {
     if (!isContenteditable(selectedEl) || !selFontFamily.value) return;
     restoreSelection();
@@ -794,10 +848,10 @@
     refreshToolbar();
     save();
   });
-  selColor.addEventListener('input', function() {
+  selFontColor.addEventListener('input', function() {
     if (!isContenteditable(selectedEl)) return;
     restoreSelection();
-    wrapSelection({ color: selColor.value });
+    wrapSelection({ color: selFontColor.value });
     save();
   });
 
@@ -857,6 +911,8 @@
       if (!isBlock(el)) return null;
       const node = {
         dir: el.dataset.dir || null,
+        border: el.dataset.border || null,
+        bg: el.dataset.bg || null,
         children: Array.from(el.children).map(serialize).filter(Boolean)
       };
       if (!node.dir) {
@@ -876,6 +932,8 @@
       const div = document.createElement('div');
       div.className = 'block';
       if (node.dir) div.dataset.dir = node.dir;
+      if (node.border) div.dataset.border = node.border;
+      if (node.bg) { div.dataset.bg = node.bg; div.style.backgroundColor = node.bg; }
       if (node.children) {
         node.children.forEach(function(c) {
           div.appendChild(deserialize(c));
