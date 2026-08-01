@@ -457,6 +457,18 @@
 
   <div class="divider" id="div-save"></div>
 
+  <button id="btn-move-prev" class="secondary" disabled>
+    <svg viewBox="0 0 24 24">
+      <line x1="12" y1="19" x2="12" y2="5"/>
+      <polyline points="5 12 12 5 19 12"/>
+    </svg>
+  </button>
+  <button id="btn-move-next" class="secondary" disabled>
+    <svg viewBox="0 0 24 24">
+      <line x1="12" y1="5" x2="12" y2="19"/>
+      <polyline points="19 12 12 19 5 12"/>
+    </svg>
+  </button>
   <button id="btn-add-sub-row" class="secondary" disabled>
     <svg viewBox="0 0 24 24">
       <rect x="2" y="2" width="20" height="20" rx="1"/>
@@ -581,6 +593,8 @@
   const fileOpen = document.getElementById('file-open');
   const btnSave = document.getElementById('btn-save');
   const btnPrint = document.getElementById('btn-print');
+  const btnMovePrev = document.getElementById('btn-move-prev');
+  const btnMoveNext = document.getElementById('btn-move-next');
   const btnAddSubRow = document.getElementById('btn-add-sub-row');
   const btnAddSubCol = document.getElementById('btn-add-sub-col');
   const btnMergeWithPrevSib = document.getElementById('btn-merge-with-prev-sib');
@@ -614,22 +628,22 @@
   function isBlock(el) {
     return el && el.classList && el.classList.contains('block');
   }
-  function getChildBlocks(el) {
-    return Array.from(el.children).filter(isBlock);
+  function isImageBlock(block) {
+    return isBlock(block) && block.hasAttribute('data-img');
+  }
+  function isContenteditableBlock(block) {
+    return isBlock(block) && !dirOf(block) && !block.hasAttribute('data-img');
   }
   function dirOf(el) {
     if (!el || !el.dataset) return null;
     return el.dataset.dir || null;
   }
-  function isContenteditable(block) {
-    return isBlock(block) && !dirOf(block) && !block.hasAttribute('data-img');
-  }
-  function isImageBlock(block) {
-    return isBlock(block) && block.hasAttribute('data-img');
+  function getChildren(el) {
+    return Array.from(el.children).filter(isBlock);
   }
   function refreshContenteditable() {
     a4.querySelectorAll('.block').forEach(function(b) {
-      if (isContenteditable(b)) {
+      if (isContenteditableBlock(b)) {
         b.setAttribute('contenteditable', 'true');
       } else {
         b.removeAttribute('contenteditable');
@@ -677,7 +691,7 @@
     savedRange = nr.cloneRange();
   }
   function restoreSelection() {
-    if (!selectedEl || !isContenteditable(selectedEl)) return false;
+    if (!selectedEl || !isContenteditableBlock(selectedEl)) return false;
     selectedEl.focus();
     if (savedRange && selectedEl.contains(savedRange.commonAncestorContainer)) {
       const sel = window.getSelection();
@@ -694,52 +708,73 @@
       const r = sel.getRangeAt(0);
       let p = r.commonAncestorContainer;
       if (p.nodeType !== 1) p = p.parentElement;
-      if (p && a4.contains(p) && isContenteditable(p.closest('.block'))) {
+      if (p && a4.contains(p) && isContenteditableBlock(p.closest('.block'))) {
         savedRange = r.cloneRange();
       }
     }
   });
 
   function refreshToolbar() {
-    btnRemove.disabled = !selectedEl;
-    btnMergeWithNextSib.disabled = !selectedEl;
+    if (!selectedEl) {
+      btnMovePrev.disabled = true;
+      btnMoveNext.disabled = true;
+      btnAddSubRow.disabled = false;
+      btnAddSubCol.disabled = true;
+      btnMergeWithPrevSib.disabled = true;
+      btnMergeWithNextSib.disabled = true;
+      btnImage.disabled = true;
+      selBlockBorder.disabled = true;
+      selBlockBg.disabled = true;
+      selFontName.disabled = true;
+      selFontSize.disabled = true;
+      btnBold.disabled = true;
+      btnItalic.disabled = true;
+      btnUnderline.disabled = true;
+      selFontColor.disabled = true;
+      btnRemove.disabled = true;
+      return;
+    }
 
-    selBlockBorder.disabled = !selectedEl;
-    selBlockBg.disabled = !selectedEl;
+    const sibs = getChildren(selectedEl.parentElement);
+    const idx = sibs.indexOf(selectedEl);
+    const dir = dirOf(selectedEl);
+    const dirParent = dirOf(selectedEl.parentElement) || 'row';
+    const img = isImageBlock(selectedEl);
+    const contenteditable = isContenteditableBlock(selectedEl);
 
-    const contenteditable = selectedEl && isContenteditable(selectedEl);
-    const isImg = selectedEl && isImageBlock(selectedEl);
+    btnMovePrev.disabled = idx <= 0;
+    btnMoveNext.disabled = idx >= sibs.length - 1;
+    btnAddSubRow.disabled = img || dir === 'col';
+    btnAddSubCol.disabled = img || dir === 'row';
+    btnMergeWithPrevSib.disabled = selectedEl.parentElement === a4 || idx <= 0;
+    btnMergeWithNextSib.disabled = selectedEl.parentElement === a4 || idx >= sibs.length - 1;
+    btnImage.disabled = img || (contenteditable && selectedEl.textContent.trim() !== '');
+    selBlockBorder.disabled = false;
+    selBlockBg.disabled = false;
     selFontName.disabled = !contenteditable;
     selFontSize.disabled = !contenteditable;
     btnBold.disabled = !contenteditable;
     btnItalic.disabled = !contenteditable;
     btnUnderline.disabled = !contenteditable;
     selFontColor.disabled = !contenteditable;
+    btnRemove.disabled = false;
 
-    btnImage.disabled = !selectedEl || isImg || (contenteditable && selectedEl.textContent.trim() !== '');
+    selBlockBorder.value = selectedEl.dataset.border || 'none';
+    selBlockBg.value = selectedEl.dataset.bg || '#ffffff';
 
-    if (selectedEl) {
-      selBlockBorder.value = selectedEl.dataset.border || 'none';
-      selBlockBg.value = selectedEl.dataset.bg || '#ffffff';
+    if (dirParent === 'col') {
+      btnMovePrev.querySelector('svg').innerHTML = '<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 5 5 12 12 19"/>';
+      btnMoveNext.querySelector('svg').innerHTML = '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>';
+      btnMergeWithPrevSib.querySelector('svg').innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="13" y1="4" x2="13" y2="4"/><line x1="13" y1="7" x2="13" y2="9"/><line x1="13" y1="11" x2="13" y2="12"/><line x1="13" y1="14" x2="13" y2="16"/><line x1="13" y1="19" x2="13" y2="19"/><line x1="16" y1="8" x2="9" y2="8"/><polyline points="10,6 8,8 10,10"/><line x1="16" y1="15" x2="9" y2="15"/><polyline points="10,13 8,15 10,17"/>';
+      btnMergeWithNextSib.querySelector('svg').innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="11" y1="4" x2="11" y2="4"/><line x1="11" y1="7" x2="11" y2="9"/><line x1="11" y1="11" x2="11" y2="12"/><line x1="11" y1="14" x2="11" y2="16"/><line x1="11" y1="19" x2="11" y2="19"/><line x1="8" y1="8" x2="15" y2="8"/><polyline points="14,6 16,8 14,10"/><line x1="8" y1="15" x2="15" y2="15"/><polyline points="14,13 16,15 14,17"/>';
+    } else {
+      btnMovePrev.querySelector('svg').innerHTML = '<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>';
+      btnMoveNext.querySelector('svg').innerHTML = '<line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>';
+      btnMergeWithPrevSib.querySelector('svg').innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="20" y1="13" x2="20" y2="13"/><line x1="17" y1="13" x2="15" y2="13"/><line x1="13" y1="13" x2="12" y2="13"/><line x1="10" y1="13" x2="8" y2="13"/><line x1="5" y1="13" x2="5" y2="13"/><line x1="16" y1="16" x2="16" y2="9"/><polyline points="18,10 16,8 14,10"/><line x1="9" y1="16" x2="9" y2="9"/><polyline points="11,10 9,8 7,10"/>';
+      btnMergeWithNextSib.querySelector('svg').innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="20" y1="11" x2="20" y2="11"/><line x1="17" y1="11" x2="15" y2="11"/><line x1="13" y1="11" x2="12" y2="11"/><line x1="10" y1="11" x2="8" y2="11"/><line x1="5" y1="11" x2="5" y2="11"/><line x1="16" y1="8" x2="16" y2="15"/><polyline points="18,14 16,16 14,14"/><line x1="9" y1="8" x2="9" y2="15"/><polyline points="11,14 9,16 7,14"/>';
     }
 
-    if (!selectedEl) {
-      btnAddSubRow.disabled = false;
-      btnAddSubCol.disabled = true;
-      return;
-    }
-
-    const curDir = dirOf(selectedEl);
-    btnAddSubRow.disabled = isImg || curDir === 'col';
-    btnAddSubCol.disabled = isImg || curDir === 'row';
-
-    const siblings = getChildBlocks(selectedEl.parentElement);
-    const idx = siblings.indexOf(selectedEl);
-    const isTopLevel = selectedEl.parentElement === a4;
-    btnMergeWithPrevSib.disabled = !selectedEl || isTopLevel || idx <= 0;
-    btnMergeWithNextSib.disabled = !selectedEl || isTopLevel || idx >= siblings.length - 1;
-
-    if (isContenteditable(selectedEl)) {
+    if (contenteditable) {
       try {
         btnBold.classList.toggle('active', document.queryCommandState('bold'));
         btnItalic.classList.toggle('active', document.queryCommandState('italic'));
@@ -765,13 +800,13 @@
 
   function refreshTreeView() {
     tv.innerHTML = '';
-    const roots = getChildBlocks(a4);
+    const roots = getChildren(a4);
     if (roots.length === 0) {
       tv.innerHTML = '<div class="tree-empty">None</div>';
       return;
     }
     function buildTree(parent, depth, parentPath) {
-      const blocks = getChildBlocks(parent);
+      const blocks = getChildren(parent);
       blocks.forEach(function(block, i) {
         const dir = dirOf(block);
         const item = document.createElement('div');
@@ -821,6 +856,30 @@
     refreshTreeView();
   }
 
+  function movePrev() {
+    if (!selectedEl) return;
+    const parent = selectedEl.parentElement;
+    const sibs = getChildren(parent);
+    const idx = sibs.indexOf(selectedEl);
+    if (idx <= 0) return;
+    parent.insertBefore(selectedEl, sibs[idx - 1]);
+    save();
+    refreshToolbar();
+    refreshTreeView();
+  }
+
+  function moveNext() {
+    if (!selectedEl) return;
+    const parent = selectedEl.parentElement;
+    const sibs = getChildren(parent);
+    const idx = sibs.indexOf(selectedEl);
+    if (idx < 0 || idx >= sibs.length - 1) return;
+    parent.insertBefore(sibs[idx + 1], selectedEl);
+    save();
+    refreshToolbar();
+    refreshTreeView();
+  }
+
   function addSubRow() {
     if (!selectedEl) {
       const block = document.createElement('div');
@@ -860,12 +919,12 @@
   function mergeWithPrevSib() {
     if (!selectedEl) return;
     const parent = selectedEl.parentElement;
-    const siblings = getChildBlocks(parent);
-    const idx = siblings.indexOf(selectedEl);
+    const sibs = getChildren(parent);
+    const idx = sibs.indexOf(selectedEl);
     if (idx <= 0) return;
 
-    const prev = siblings[idx - 1];
-    const otherSibs = siblings.filter(function(s, i) { return i !== idx && i !== idx - 1; });
+    const prev = sibs[idx - 1];
+    const otherSibs = sibs.filter(function(s, i) { return i !== idx && i !== idx - 1; });
     const parentDir = dirOf(parent);
     const frozen = otherSibs.map(function(s) {
       const r = s.getBoundingClientRect();
@@ -897,12 +956,12 @@
   function mergeWithNextSib() {
     if (!selectedEl) return;
     const parent = selectedEl.parentElement;
-    const siblings = getChildBlocks(parent);
-    const idx = siblings.indexOf(selectedEl);
-    if (idx < 0 || idx >= siblings.length - 1) return;
+    const sibs = getChildren(parent);
+    const idx = sibs.indexOf(selectedEl);
+    if (idx < 0 || idx >= sibs.length - 1) return;
 
-    const next = siblings[idx + 1];
-    const otherSibs = siblings.filter(function(s, i) { return i !== idx && i !== idx + 1; });
+    const next = sibs[idx + 1];
+    const otherSibs = sibs.filter(function(s, i) { return i !== idx && i !== idx + 1; });
     const parentDir = dirOf(parent);
     const frozen = otherSibs.map(function(s) {
       const r = s.getBoundingClientRect();
@@ -936,7 +995,7 @@
     const parent = selectedEl.parentElement;
     selectedEl.remove();
     selectedEl = null;
-    if (getChildBlocks(parent).length === 0 && parent !== a4) {
+    if (getChildren(parent).length === 0 && parent !== a4) {
       delete parent.dataset.dir;
     }
 
@@ -947,6 +1006,8 @@
   }
 
   btnNew.addEventListener('click', newA4);
+  btnMovePrev.addEventListener('click', movePrev);
+  btnMoveNext.addEventListener('click', moveNext);
   btnAddSubRow.addEventListener('click', addSubRow);
   btnAddSubCol.addEventListener('click', addSubCol);
   btnMergeWithPrevSib.addEventListener('click', mergeWithPrevSib);
@@ -955,7 +1016,7 @@
 
   btnImage.addEventListener('click', function() {
     if (!selectedEl || isImageBlock(selectedEl)) return;
-    if (isContenteditable(selectedEl) && selectedEl.textContent.trim() !== '') return;
+    if (isContenteditableBlock(selectedEl) && selectedEl.textContent.trim() !== '') return;
     fileImage.click();
   });
   fileImage.addEventListener('change', function() {
@@ -994,24 +1055,24 @@
   });
 
   selFontName.addEventListener('mousedown', function(e) {
-    if (!isContenteditable(selectedEl)) return;
+    if (!isContenteditableBlock(selectedEl)) return;
     e.preventDefault();
     if (selFontName.showPicker) selFontName.showPicker();
   });
   selFontName.addEventListener('change', function() {
-    if (!isContenteditable(selectedEl) || !selFontName.value) return;
+    if (!isContenteditableBlock(selectedEl) || !selFontName.value) return;
     restoreSelection();
     document.execCommand('fontName', false, selFontName.value);
     refreshToolbar();
     save();
   });
   selFontSize.addEventListener('mousedown', function(e) {
-    if (!isContenteditable(selectedEl)) return;
+    if (!isContenteditableBlock(selectedEl)) return;
     e.preventDefault();
     if (selFontSize.showPicker) selFontSize.showPicker();
   });
   selFontSize.addEventListener('change', function() {
-    if (!isContenteditable(selectedEl) || !selFontSize.value) return;
+    if (!isContenteditableBlock(selectedEl) || !selFontSize.value) return;
     restoreSelection();
     document.execCommand('fontSize', false, '7');
     selectedEl.querySelectorAll('font[size="7"]').forEach(function(el) {
@@ -1023,32 +1084,32 @@
     refreshToolbar();
     save();
   });
-  btnBold.addEventListener('mousedown', function(e) { if(!isContenteditable(selectedEl)) return; e.preventDefault(); });
+  btnBold.addEventListener('mousedown', function(e) { if(!isContenteditableBlock(selectedEl)) return; e.preventDefault(); });
   btnBold.addEventListener('click', function() {
-    if (!isContenteditable(selectedEl)) return;
+    if (!isContenteditableBlock(selectedEl)) return;
     restoreSelection();
     document.execCommand('bold');
     refreshToolbar();
     save();
   });
-  btnItalic.addEventListener('mousedown', function(e) { if(!isContenteditable(selectedEl)) return; e.preventDefault(); });
+  btnItalic.addEventListener('mousedown', function(e) { if(!isContenteditableBlock(selectedEl)) return; e.preventDefault(); });
   btnItalic.addEventListener('click', function() {
-    if (!isContenteditable(selectedEl)) return;
+    if (!isContenteditableBlock(selectedEl)) return;
     restoreSelection();
     document.execCommand('italic');
     refreshToolbar();
     save();
   });
-  btnUnderline.addEventListener('mousedown', function(e) { if(!isContenteditable(selectedEl)) return; e.preventDefault(); });
+  btnUnderline.addEventListener('mousedown', function(e) { if(!isContenteditableBlock(selectedEl)) return; e.preventDefault(); });
   btnUnderline.addEventListener('click', function() {
-    if (!isContenteditable(selectedEl)) return;
+    if (!isContenteditableBlock(selectedEl)) return;
     restoreSelection();
     document.execCommand('underline');
     refreshToolbar();
     save();
   });
   selFontColor.addEventListener('input', function() {
-    if (!isContenteditable(selectedEl)) return;
+    if (!isContenteditableBlock(selectedEl)) return;
     restoreSelection();
     wrapSelection({ color: selFontColor.value });
     save();
@@ -1064,7 +1125,7 @@
 
   a4.addEventListener('mouseup', refreshToolbar);
   a4.addEventListener('click', function(e) {
-    if (isBlock(e.target) && isContenteditable(e.target)) {
+    if (isBlock(e.target) && isContenteditableBlock(e.target)) {
       save();
     }
   });
@@ -1076,7 +1137,7 @@
     if (isBlock(block)) {
       e.stopPropagation();
       select(block);
-      if (isContenteditable(block)) {
+      if (isContenteditableBlock(block)) {
       }
     }
   });
@@ -1092,7 +1153,7 @@
     if (!inSidebar && !inToolbar && !inA4) deselect();
   });
   document.addEventListener('keydown', function(e) {
-    if (isContenteditable(e.target) && document.activeElement === e.target) {
+    if (isContenteditableBlock(e.target) && document.activeElement === e.target) {
       if ((e.ctrlKey || e.metaKey) && ['b','i','u'].includes(e.key.toLowerCase())) {
         setTimeout(refreshToolbar, 0);
         setTimeout(save, 0);
@@ -1126,7 +1187,7 @@
     }
     return {
       rootDir: a4.dataset.dir || null,
-      children: getChildBlocks(a4).map(serializeBlock).filter(Boolean)
+      children: getChildren(a4).map(serializeBlock).filter(Boolean)
     };
   }
 
