@@ -1173,9 +1173,9 @@
     function serializeBlock(el) {
       if (!isBlock(el)) return null;
       const node = {
-        dir: el.dataset.dir || null,
         border: el.dataset.border || null,
         bg: el.dataset.bg || null,
+        dir: el.dataset.dir || null,
         img: el.hasAttribute('data-img') ? true : null
       };
       if (node.dir) {
@@ -1248,12 +1248,20 @@
     save();
     const a4data = serializeA4();
     const json = JSON.stringify(a4data, null, 2);
-    const d = new Date();
-    const ts = [d.getFullYear() % 100, String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('') + '_' + [String(d.getHours()).padStart(2,'0'), String(d.getMinutes()).padStart(2,'0'), String(d.getSeconds()).padStart(2,'0')].join('');
+
+    const date = new Date();
+    const year = date.getFullYear() % 100;
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    const timeStr = [year, month, day].join('') + '_' + [hours, minutes, seconds].join('');
+
     if (window.showSaveFilePicker) {
       try {
         const handle = await window.showSaveFilePicker({
-          suggestedName: ts + '.a4r',
+          suggestedName: timeStr + '.a4r',
           types: [{ description: 'A4 Resume', accept: { 'application/json': ['.a4r'] } }]
         });
         const writable = await handle.createWritable();
@@ -1264,7 +1272,7 @@
         if (e.name === 'AbortError') return;
       }
     }
-    const name = prompt('Filename:', ts);
+    const name = prompt('Filename:', timeStr);
     if (!name) return;
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
