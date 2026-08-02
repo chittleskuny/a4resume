@@ -5,16 +5,12 @@
 
 A4RESUME is a minimalist resume layout tool. Instead of a free-form canvas, every document is a recursive tree of **blocks** arranged as rows or columns. The result prints cleanly to a single A4 page.
 
----
-
 ## Highlights
 
-- **Single File** — `index.html` is the whole app. No `npm install`, no bundlers, no server. Open it in a browser and start typing.
+- **Single File** — `index.html` is the whole app, no `npm install`, no bundlers, no server. Open it in a browser and start typing.
 - **Live Block Tree** — A recursive row/column structure mirrored by a visual sidebar, allowing intuitive navigation and layout control without manual positioning.
 - **What You See Is What You Get** — Zero surprises when printing.
 - **Local First** — Your data never leaves your machine, persisting safely in localStorage or as JSON files.
-
----
 
 ## Features
 
@@ -35,26 +31,20 @@ A4RESUME is a minimalist resume layout tool. Instead of a free-form canvas, ever
 | **Add Sub Row** | Convert the selected block into a vertical stack and append a child. |
 | **Add Sub Col** | Convert the selected block into a horizontal stack and append a child. |
 | **Merge With Prev/Next Sib** | Absorb an adjacent sibling into the selected block. |
-| **Image** | Insert an image into an empty block. |
-| **Remove** | Delete the selected block. |
-
----
+| **Image** | Insert an image into a blank leaf. |
+| **Remove** | Remove the selected block. |
 
 ## Getting Started
 
-### Local Usage
-
 **No build step required.**
 
-Download `index.html` and double-click it to open in any modern browser.
+### Local Usage
 
-That's it.
+Download `index.html` and double-click it to open in any modern browser.
 
 ### Hosted Usage
 
 Upload `index.html` to any static host.
-
----
 
 ## How It Works
 
@@ -69,8 +59,6 @@ Every document element is a `<div class="block">`. A block is one of:
 
 The A4 root is always a row container.
 
----
-
 ## File Format
 
 `.a4r` files are plain JSON. Each node is either a leaf or a container:
@@ -78,11 +66,9 @@ The A4 root is always a row container.
 - **Leaf**: `{ "content": "..." }`
 - **Container**: `{ "dir": "row" | "col", "children": [...] }`
 
----
-
 ## Contributing
 
-Contributions are welcome. The codebase is intentionally small and self-contained; please keep new features aligned with the single-file, zero-dependency philosophy.
+Contributions are welcome.
 
 1. Fork the repository.
 2. Create your feature branch (`git checkout -b feature/amazing`).
@@ -90,9 +76,7 @@ Contributions are welcome. The codebase is intentionally small and self-containe
 4. Push to the branch (`git push origin feature/amazing`).
 5. Open a Pull Request.
 
-Please keep it single-file.
-
----
+Please keep it **single-file**.
 
 ## License
 
