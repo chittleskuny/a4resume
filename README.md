@@ -7,7 +7,7 @@ A4RESUME is a minimalist resume layout tool. Instead of a free-form canvas, ever
 
 ## Highlights
 
-- **Single File** — `index.html` is the whole app, no `npm install`, no bundlers, no server. Open it in a browser and start typing.
+- **Single File** — `index.html` is the whole app, no `npm install`, no bundlers, no server.
 - **Live Block Tree** — A recursive row/column structure mirrored by a visual sidebar, allowing intuitive navigation and layout control without manual positioning.
 - **What You See Is What You Get** — Zero surprises when printing.
 - **Local First** — Your data never leaves your machine, persisting safely in localStorage or as JSON files.
@@ -19,8 +19,8 @@ A4RESUME is a minimalist resume layout tool. Instead of a free-form canvas, ever
 | Action | Description |
 | --- | --- |
 | **New** | Clear the canvas and start from empty. |
-| **Open** | Import a `.a4r` file. |
-| **Save** | Export as a `.a4r` file. |
+| **Open** | Import a `.A4R` file. |
+| **Save** | Export as a `.A4R` file. |
 | **Print** | Send the canvas to the printer. |
 
 ### Block
@@ -61,7 +61,7 @@ The A4 root is always a row container.
 
 ## File Format
 
-`.a4r` files are plain JSON. Each node is either a leaf or a container:
+`.A4R` files are plain JSON. Each node is either a leaf or a container:
 
 - **Leaf**: `{ "content": "..." }`
 - **Container**: `{ "dir": "row" | "col", "children": [...] }`

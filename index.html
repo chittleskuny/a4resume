@@ -326,6 +326,10 @@
   .block[data-border="left"] { border-left: 1px solid #1a1a1a; }
   .block[data-border="right"] { border-right: 1px solid #1a1a1a; }
 
+  .block[data-align="left"] { text-align: left; }
+  .block[data-align="center"] { text-align: center; }
+  .block[data-align="right"] { text-align: right; }
+
   .block[data-img] {
     min-height: 0;
     cursor: pointer;
@@ -401,6 +405,9 @@
       background-image: none !important;
       background: #fff !important;
       page-break-after: always;
+    }
+    .block {
+      background: #fff !important;
     }
     .block:not([data-border]) {
       box-shadow: none !important;
@@ -499,7 +506,7 @@
       <line x1="12" y1="6" x2="12" y2="5"/>
     </svg>
   </button>
-  <button id="btn-merge-with-prev-sib" class="secondary" disabled>
+  <button id="btn-absorb-prev-sib" class="secondary" disabled>
     <svg viewBox="0 0 24 24">
       <rect x="3" y="3" width="18" height="18" rx="2"/>
       <line x1="13" y1="4" x2="13" y2="4"/>
@@ -513,7 +520,7 @@
       <polyline points="10,13 8,15 10,17"/>
     </svg>
   </button>
-  <button id="btn-merge-with-next-sib" class="secondary" disabled>
+  <button id="btn-absorb-next-sib" class="secondary" disabled>
     <svg viewBox="0 0 24 24">
       <rect x="3" y="3" width="18" height="18" rx="2"/>
       <line x1="11" y1="4" x2="11" y2="4"/>
@@ -544,6 +551,33 @@
     <option value="right">Right</option>
   </select>
   <input type="color" id="sel-block-bg" class="fmt-color">
+
+  <div class="divider"></div>
+
+  <button id="btn-align-left" class="secondary" disabled>
+    <svg viewBox="0 0 24 24">
+      <line x1="17" y1="10" x2="3" y2="10"/>
+      <line x1="21" y1="6" x2="3" y2="6"/>
+      <line x1="21" y1="14" x2="3" y2="14"/>
+      <line x1="17" y1="18" x2="3" y2="18"/>
+    </svg>
+  </button>
+  <button id="btn-align-center" class="secondary" disabled>
+    <svg viewBox="0 0 24 24">
+      <line x1="18" y1="10" x2="6" y2="10"/>
+      <line x1="21" y1="6" x2="3" y2="6"/>
+      <line x1="21" y1="14" x2="3" y2="14"/>
+      <line x1="18" y1="18" x2="6" y2="18"/>
+    </svg>
+  </button>
+  <button id="btn-align-right" class="secondary" disabled>
+    <svg viewBox="0 0 24 24">
+      <line x1="21" y1="10" x2="7" y2="10"/>
+      <line x1="21" y1="6" x2="3" y2="6"/>
+      <line x1="21" y1="14" x2="3" y2="14"/>
+      <line x1="21" y1="18" x2="7" y2="18"/>
+    </svg>
+  </button>
 
   <div class="divider"></div>
 
@@ -597,12 +631,15 @@
   const btnMoveNext = document.getElementById('btn-move-next');
   const btnAddSubRow = document.getElementById('btn-add-sub-row');
   const btnAddSubCol = document.getElementById('btn-add-sub-col');
-  const btnMergeWithPrevSib = document.getElementById('btn-merge-with-prev-sib');
-  const btnMergeWithNextSib = document.getElementById('btn-merge-with-next-sib');
+  const btnAbsorbPrevSib = document.getElementById('btn-absorb-prev-sib');
+  const btnAbsorbNextSib = document.getElementById('btn-absorb-next-sib');
   const btnImage = document.getElementById('btn-image');
   const fileImage = document.getElementById('file-image');
   const selBlockBorder = document.getElementById('sel-block-border');
   const selBlockBg = document.getElementById('sel-block-bg');
+  const btnAlignLeft = document.getElementById('btn-align-left');
+  const btnAlignCenter = document.getElementById('btn-align-center');
+  const btnAlignRight = document.getElementById('btn-align-right');
   const selFontName = document.getElementById('sel-font-name');
   const selFontSize = document.getElementById('sel-font-size');
   const btnBold = document.getElementById('btn-bold');
@@ -640,6 +677,19 @@
   }
   function childrenOf(el) {
     return Array.from(el.children).filter(isBlock);
+  }
+  function flexOf(el) {
+    return parseInt(el.dataset.flex, 10) || 1;
+  }
+  function setFlex(el, w) {
+    el.style.flex = '';
+    if (w > 1) {
+      el.dataset.flex = String(w);
+      el.style.flexGrow = String(w);
+    } else {
+      delete el.dataset.flex;
+      el.style.flexGrow = '';
+    }
   }
   function refreshContenteditable() {
     a4.querySelectorAll('.block').forEach(function(b) {
@@ -720,11 +770,14 @@
       btnMoveNext.disabled = true;
       btnAddSubRow.disabled = false;
       btnAddSubCol.disabled = true;
-      btnMergeWithPrevSib.disabled = true;
-      btnMergeWithNextSib.disabled = true;
+      btnAbsorbPrevSib.disabled = true;
+      btnAbsorbNextSib.disabled = true;
       btnImage.disabled = true;
       selBlockBorder.disabled = true;
       selBlockBg.disabled = true;
+      btnAlignLeft.disabled = true;
+      btnAlignCenter.disabled = true;
+      btnAlignRight.disabled = true;
       selFontName.disabled = true;
       selFontSize.disabled = true;
       btnBold.disabled = true;
@@ -746,11 +799,14 @@
     btnMoveNext.disabled = idx >= sibs.length - 1;
     btnAddSubRow.disabled = img || dir === 'col';
     btnAddSubCol.disabled = img || dir === 'row';
-    btnMergeWithPrevSib.disabled = selectedEl.parentElement === a4 || idx <= 0;
-    btnMergeWithNextSib.disabled = selectedEl.parentElement === a4 || idx >= sibs.length - 1;
+    btnAbsorbPrevSib.disabled = selectedEl.parentElement === a4 || idx <= 0;
+    btnAbsorbNextSib.disabled = selectedEl.parentElement === a4 || idx >= sibs.length - 1;
     btnImage.disabled = img || (contenteditable && selectedEl.textContent.trim() !== '');
     selBlockBorder.disabled = false;
     selBlockBg.disabled = false;
+    btnAlignLeft.disabled = !contenteditable;
+    btnAlignCenter.disabled = !contenteditable;
+    btnAlignRight.disabled = !contenteditable;
     selFontName.disabled = !contenteditable;
     selFontSize.disabled = !contenteditable;
     btnBold.disabled = !contenteditable;
@@ -762,16 +818,27 @@
     selBlockBorder.value = selectedEl.dataset.border || 'none';
     selBlockBg.value = selectedEl.dataset.bg || '#ffffff';
 
+    if (contenteditable) {
+      const align = selectedEl.dataset.align || 'left';
+      btnAlignLeft.classList.toggle('active', align === 'left');
+      btnAlignCenter.classList.toggle('active', align === 'center');
+      btnAlignRight.classList.toggle('active', align === 'right');
+    } else {
+      btnAlignLeft.classList.remove('active');
+      btnAlignCenter.classList.remove('active');
+      btnAlignRight.classList.remove('active');
+    }
+
     if (dirParent === 'col') {
       btnMovePrev.querySelector('svg').innerHTML = '<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 5 5 12 12 19"/>';
       btnMoveNext.querySelector('svg').innerHTML = '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>';
-      btnMergeWithPrevSib.querySelector('svg').innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="13" y1="4" x2="13" y2="4"/><line x1="13" y1="7" x2="13" y2="9"/><line x1="13" y1="11" x2="13" y2="12"/><line x1="13" y1="14" x2="13" y2="16"/><line x1="13" y1="19" x2="13" y2="19"/><line x1="16" y1="8" x2="9" y2="8"/><polyline points="10,6 8,8 10,10"/><line x1="16" y1="15" x2="9" y2="15"/><polyline points="10,13 8,15 10,17"/>';
-      btnMergeWithNextSib.querySelector('svg').innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="11" y1="4" x2="11" y2="4"/><line x1="11" y1="7" x2="11" y2="9"/><line x1="11" y1="11" x2="11" y2="12"/><line x1="11" y1="14" x2="11" y2="16"/><line x1="11" y1="19" x2="11" y2="19"/><line x1="8" y1="8" x2="15" y2="8"/><polyline points="14,6 16,8 14,10"/><line x1="8" y1="15" x2="15" y2="15"/><polyline points="14,13 16,15 14,17"/>';
+      btnAbsorbPrevSib.querySelector('svg').innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="13" y1="4" x2="13" y2="4"/><line x1="13" y1="7" x2="13" y2="9"/><line x1="13" y1="11" x2="13" y2="12"/><line x1="13" y1="14" x2="13" y2="16"/><line x1="13" y1="19" x2="13" y2="19"/><line x1="16" y1="8" x2="9" y2="8"/><polyline points="10,6 8,8 10,10"/><line x1="16" y1="15" x2="9" y2="15"/><polyline points="10,13 8,15 10,17"/>';
+      btnAbsorbNextSib.querySelector('svg').innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="11" y1="4" x2="11" y2="4"/><line x1="11" y1="7" x2="11" y2="9"/><line x1="11" y1="11" x2="11" y2="12"/><line x1="11" y1="14" x2="11" y2="16"/><line x1="11" y1="19" x2="11" y2="19"/><line x1="8" y1="8" x2="15" y2="8"/><polyline points="14,6 16,8 14,10"/><line x1="8" y1="15" x2="15" y2="15"/><polyline points="14,13 16,15 14,17"/>';
     } else {
       btnMovePrev.querySelector('svg').innerHTML = '<line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>';
       btnMoveNext.querySelector('svg').innerHTML = '<line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>';
-      btnMergeWithPrevSib.querySelector('svg').innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="20" y1="13" x2="20" y2="13"/><line x1="17" y1="13" x2="15" y2="13"/><line x1="13" y1="13" x2="12" y2="13"/><line x1="10" y1="13" x2="8" y2="13"/><line x1="5" y1="13" x2="5" y2="13"/><line x1="16" y1="16" x2="16" y2="9"/><polyline points="18,10 16,8 14,10"/><line x1="9" y1="16" x2="9" y2="9"/><polyline points="11,10 9,8 7,10"/>';
-      btnMergeWithNextSib.querySelector('svg').innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="20" y1="11" x2="20" y2="11"/><line x1="17" y1="11" x2="15" y2="11"/><line x1="13" y1="11" x2="12" y2="11"/><line x1="10" y1="11" x2="8" y2="11"/><line x1="5" y1="11" x2="5" y2="11"/><line x1="16" y1="8" x2="16" y2="15"/><polyline points="18,14 16,16 14,14"/><line x1="9" y1="8" x2="9" y2="15"/><polyline points="11,14 9,16 7,14"/>';
+      btnAbsorbPrevSib.querySelector('svg').innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="20" y1="13" x2="20" y2="13"/><line x1="17" y1="13" x2="15" y2="13"/><line x1="13" y1="13" x2="12" y2="13"/><line x1="10" y1="13" x2="8" y2="13"/><line x1="5" y1="13" x2="5" y2="13"/><line x1="16" y1="16" x2="16" y2="9"/><polyline points="18,10 16,8 14,10"/><line x1="9" y1="16" x2="9" y2="9"/><polyline points="11,10 9,8 7,10"/>';
+      btnAbsorbNextSib.querySelector('svg').innerHTML = '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="20" y1="11" x2="20" y2="11"/><line x1="17" y1="11" x2="15" y2="11"/><line x1="13" y1="11" x2="12" y2="11"/><line x1="10" y1="11" x2="8" y2="11"/><line x1="5" y1="11" x2="5" y2="11"/><line x1="16" y1="8" x2="16" y2="15"/><polyline points="18,14 16,16 14,14"/><line x1="9" y1="8" x2="9" y2="15"/><polyline points="11,14 9,16 7,14"/>';
     }
 
     if (contenteditable) {
@@ -843,6 +910,7 @@
   }
 
   function newA4() {
+    if (!confirm('Any unsaved changes will be lost. Start a new document?')) return;
     a4.innerHTML = '';
     a4.dataset.dir = 'row';
     selectedEl = null;
@@ -916,7 +984,7 @@
     save();
   }
 
-  function mergeWithPrevSib() {
+  function absorbPrevSib() {
     if (!selectedEl) return;
     const parent = selectedEl.parentElement;
     const sibs = childrenOf(parent);
@@ -924,12 +992,6 @@
     if (idx <= 0) return;
 
     const prev = sibs[idx - 1];
-    const otherSibs = sibs.filter(function(s, i) { return i !== idx && i !== idx - 1; });
-    const parentDir = dirOf(parent);
-    const frozen = otherSibs.map(function(s) {
-      const r = s.getBoundingClientRect();
-      return { el: s, w: r.width, h: r.height };
-    });
 
     while (prev.children.length > 0) {
       selectedEl.insertBefore(prev.children[0], selectedEl.firstChild);
@@ -937,15 +999,8 @@
     if (!dirOf(selectedEl) && dirOf(prev)) {
       selectedEl.dataset.dir = dirOf(prev);
     }
+    setFlex(selectedEl, flexOf(selectedEl) + flexOf(prev));
     prev.remove();
-
-    frozen.forEach(function(f) {
-      if (parentDir === 'col') {
-        f.el.style.flex = '0 0 ' + f.w + 'px';
-      } else {
-        f.el.style.flex = '0 0 ' + f.h + 'px';
-      }
-    });
 
     refreshContenteditable();
     save();
@@ -953,7 +1008,7 @@
     refreshTreeView();
   }
 
-  function mergeWithNextSib() {
+  function absorbNextSib() {
     if (!selectedEl) return;
     const parent = selectedEl.parentElement;
     const sibs = childrenOf(parent);
@@ -961,12 +1016,6 @@
     if (idx < 0 || idx >= sibs.length - 1) return;
 
     const next = sibs[idx + 1];
-    const otherSibs = sibs.filter(function(s, i) { return i !== idx && i !== idx + 1; });
-    const parentDir = dirOf(parent);
-    const frozen = otherSibs.map(function(s) {
-      const r = s.getBoundingClientRect();
-      return { el: s, w: r.width, h: r.height };
-    });
 
     while (next.children.length > 0) {
       selectedEl.appendChild(next.children[0]);
@@ -974,15 +1023,8 @@
     if (!dirOf(selectedEl) && dirOf(next)) {
       selectedEl.dataset.dir = dirOf(next);
     }
+    setFlex(selectedEl, flexOf(selectedEl) + flexOf(next));
     next.remove();
-
-    frozen.forEach(function(f) {
-      if (parentDir === 'col') {
-        f.el.style.flex = '0 0 ' + f.w + 'px';
-      } else {
-        f.el.style.flex = '0 0 ' + f.h + 'px';
-      }
-    });
 
     refreshContenteditable();
     save();
@@ -1010,8 +1052,8 @@
   btnMoveNext.addEventListener('click', moveNext);
   btnAddSubRow.addEventListener('click', addSubRow);
   btnAddSubCol.addEventListener('click', addSubCol);
-  btnMergeWithPrevSib.addEventListener('click', mergeWithPrevSib);
-  btnMergeWithNextSib.addEventListener('click', mergeWithNextSib);
+  btnAbsorbPrevSib.addEventListener('click', absorbPrevSib);
+  btnAbsorbNextSib.addEventListener('click', absorbNextSib);
   btnRemove.addEventListener('click', remove);
 
   btnImage.addEventListener('click', function() {
@@ -1051,6 +1093,25 @@
     if (!selectedEl) return;
     selectedEl.dataset.bg = selBlockBg.value;
     selectedEl.style.backgroundColor = selBlockBg.value;
+    save();
+  });
+
+  btnAlignLeft.addEventListener('click', function() {
+    if (!isContenteditableBlock(selectedEl)) return;
+    selectedEl.dataset.align = 'left';
+    refreshToolbar();
+    save();
+  });
+  btnAlignCenter.addEventListener('click', function() {
+    if (!isContenteditableBlock(selectedEl)) return;
+    selectedEl.dataset.align = 'center';
+    refreshToolbar();
+    save();
+  });
+  btnAlignRight.addEventListener('click', function() {
+    if (!isContenteditableBlock(selectedEl)) return;
+    selectedEl.dataset.align = 'right';
+    refreshToolbar();
     save();
   });
 
@@ -1176,7 +1237,9 @@
         border: el.dataset.border || null,
         bg: el.dataset.bg || null,
         dir: el.dataset.dir || null,
-        img: el.hasAttribute('data-img') ? true : null
+        img: el.hasAttribute('data-img') ? true : null,
+        align: el.dataset.align || null,
+        flex: el.dataset.flex || null
       };
       if (node.dir) {
         node.children = Array.from(el.children).filter(isBlock).map(serializeBlock).filter(Boolean);
@@ -1200,6 +1263,8 @@
       if (node.border) div.dataset.border = node.border;
       if (node.bg) { div.dataset.bg = node.bg; div.style.backgroundColor = node.bg; }
       if (node.dir) div.dataset.dir = node.dir;
+      if (node.flex) { div.dataset.flex = node.flex; div.style.flexGrow = node.flex; }
+      if (node.align) div.dataset.align = node.align;
       if (node.img) div.setAttribute('data-img', '');
       if (node.dir && node.children) {
         node.children.forEach(function(c) {
