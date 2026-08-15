@@ -255,6 +255,14 @@
     flex-shrink: 0;
   }
 
+  .tree-text {
+    margin-left: 2px;
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .tree-empty {
     padding: 20px 16px;
     font-size: 12px;
@@ -540,6 +548,12 @@
       <polyline points="14,13 16,15 14,17"/>
     </svg>
   </button>
+  <button id="btn-set-ratio" class="secondary" disabled>
+    <svg viewBox="0 0 24 24">
+      <rect x="3" y="4" width="5" height="16" rx="1"/>
+      <rect x="10" y="4" width="11" height="16" rx="1"/>
+    </svg>
+  </button>
   <input type="file" id="file-image" accept="image/*" style="display:none;">
   <button id="btn-image" class="secondary" disabled>
     <svg viewBox="0 0 24 24">
@@ -640,6 +654,7 @@
   const btnAddSib = document.getElementById('btn-add-sib');
   const btnAbsorbPrevSib = document.getElementById('btn-absorb-prev-sib');
   const btnAbsorbNextSib = document.getElementById('btn-absorb-next-sib');
+  const btnSetRatio = document.getElementById('btn-set-ratio');
   const btnImage = document.getElementById('btn-image');
   const fileImage = document.getElementById('file-image');
   const selBlockBorder = document.getElementById('sel-block-border');
@@ -667,7 +682,10 @@
     }
   }
   alignSidebar();
-  window.addEventListener('resize', alignSidebar);
+  window.addEventListener('resize', function() {
+    alignSidebar();
+    refreshTreeView();
+  });
 
   function isBlock(el) {
     return el && el.classList && el.classList.contains('block');
@@ -686,11 +704,11 @@
     return Array.from(el.children).filter(isBlock);
   }
   function flexOf(el) {
-    return parseInt(el.dataset.flex, 10) || 1;
+    return parseFloat(el.dataset.flex) || 1;
   }
   function setFlex(el, w) {
     el.style.flex = '';
-    if (w > 1) {
+    if (w !== 1) {
       el.dataset.flex = String(w);
       el.style.flexGrow = String(w);
     } else {
@@ -780,6 +798,7 @@
       btnAddSib.disabled = false;
       btnAbsorbPrevSib.disabled = true;
       btnAbsorbNextSib.disabled = true;
+      btnSetRatio.disabled = true;
       btnImage.disabled = true;
       selBlockBorder.disabled = true;
       selBlockBg.disabled = true;
@@ -810,6 +829,7 @@
     btnAddSib.disabled = false;
     btnAbsorbPrevSib.disabled = selectedEl.parentElement === a4 || idx <= 0;
     btnAbsorbNextSib.disabled = selectedEl.parentElement === a4 || idx >= sibs.length - 1;
+    btnSetRatio.disabled = dir !== 'col' || childrenOf(selectedEl).length < 2;
     btnImage.disabled = img || (contenteditable && selectedEl.textContent.trim() !== '');
     selBlockBorder.disabled = false;
     selBlockBg.disabled = false;
@@ -873,6 +893,21 @@
     }
   }
 
+  function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function fitTreeText(span) {
+    const full = span.textContent;
+    if (span.scrollWidth <= span.clientWidth) return;
+    let t = full;
+    span.textContent = t + ' …';
+    while (t && span.scrollWidth > span.clientWidth) {
+      t = t.slice(0, -1);
+      span.textContent = t + ' …';
+    }
+  }
+
   function refreshTreeView() {
     tv.innerHTML = '';
     const roots = childrenOf(a4);
@@ -901,13 +936,24 @@
         const path = parentPath ? parentPath + '.' + (i + 1) : (i + 1) + '';
         const label = path;
 
-        item.innerHTML = indents + '<span class="tree-icon ' + iconClass + '">' + iconSvg + '</span>' + label;
+        let textHtml = '';
+        if (!dir && !isImageBlock(block)) {
+          const txt = block.textContent.trim().replace(/\s+/g, ' ');
+          if (txt) {
+            textHtml = '<span class="tree-text">' + escapeHtml(txt) + '</span>';
+          }
+        }
+
+        item.innerHTML = indents + '<span class="tree-icon ' + iconClass + '">' + iconSvg + '</span>' + label + textHtml;
         item.addEventListener('click', function(e) {
           e.stopPropagation();
           select(block);
           block.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         });
         tv.appendChild(item);
+
+        const textSpan = item.querySelector('.tree-text');
+        if (textSpan) fitTreeText(textSpan);
 
         if (block.children.length > 0) {
           buildTree(block, depth + 1, path);
@@ -1058,6 +1104,35 @@
     refreshTreeView();
   }
 
+  function setRatio() {
+    if (!selectedEl) return;
+    if (dirOf(selectedEl) !== 'col') return;
+    const cols = childrenOf(selectedEl);
+    if (cols.length < 2) return;
+
+    const current = cols.map(flexOf).join(':');
+    const input = prompt('Column ratio (' + cols.length + ' values, e.g. 1:2:3):', current);
+    if (input === null) return;
+
+    const parts = input.split(':').map(function(s) { return s.trim(); });
+    if (parts.length !== cols.length) {
+      alert('Invalid ratio: expected ' + cols.length + ' values, got ' + parts.length + '.');
+      return;
+    }
+
+    const values = parts.map(Number);
+    if (values.some(function(v) { return !isFinite(v) || v < 0.5 || (v % 0.5) !== 0; })) {
+      alert('Invalid ratio: values must be positive multiples of 0.5.');
+      return;
+    }
+
+    cols.forEach(function(col, i) {
+      setFlex(col, values[i]);
+    });
+    save();
+    refreshToolbar();
+  }
+
   function remove() {
     if (!selectedEl) return;
     const parent = selectedEl.parentElement;
@@ -1081,6 +1156,7 @@
   btnAddSib.addEventListener('click', addSib);
   btnAbsorbPrevSib.addEventListener('click', absorbPrevSib);
   btnAbsorbNextSib.addEventListener('click', absorbNextSib);
+  btnSetRatio.addEventListener('click', setRatio);
   btnRemove.addEventListener('click', remove);
 
   btnImage.addEventListener('click', function() {
@@ -1232,6 +1308,7 @@
   a4.addEventListener('keyup', refreshToolbar);
   a4.addEventListener('input', function() {
     save();
+    refreshTreeView();
   });
 
   document.addEventListener('click', function(e) {
