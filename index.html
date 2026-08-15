@@ -856,20 +856,19 @@
         btnItalic.classList.toggle('active', document.queryCommandState('italic'));
         btnUnderline.classList.toggle('active', document.queryCommandState('underline'));
 
-        const fn = document.queryCommandValue('fontName');
-        selFontName.value = fn ? fn.replace(/^"|"$/g, '') : 'IBM Plex Sans';
-
         const sel = window.getSelection();
-        if (sel.rangeCount) {
-          let node = sel.anchorNode;
-          if (node && node.nodeType !== 1) node = node.parentElement;
-          if (node) {
-            const cs = window.getComputedStyle(node);
-            const px = Math.round(parseFloat(cs.fontSize));
-            const opt = selFontSize.querySelector('option[value="' + px + '"]');
-            selFontSize.value = opt ? px : '';
-          }
-        }
+        let node = sel.rangeCount ? sel.anchorNode : null;
+        if (node && node.nodeType !== 1) node = node.parentElement;
+        if (!node) node = selectedEl;
+        const cs = window.getComputedStyle(node);
+
+        const fontNameRaw = cs.fontFamily.split(',')[0].trim().replace(/^['"]+|['"]+$/g, '');
+        const fontNameOpt = Array.from(selFontName.options).find(function(o) { return o.value === fontNameRaw; });
+        selFontName.value = fontNameOpt ? fontNameOpt.value : 'IBM Plex Sans';
+
+        const px = Math.round(parseFloat(cs.fontSize));
+        const sizeOpt = selFontSize.querySelector('option[value="' + px + '"]');
+        selFontSize.value = sizeOpt ? String(px) : '';
       } catch(e) {}
     }
   }
